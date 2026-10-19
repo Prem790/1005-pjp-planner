@@ -1,0 +1,59 @@
+PJP FOCUS SELECTION RULES
+
+STATUS
+Implemented as a provisional focus-selection stage. A selected set is not a
+certificate that actual dates and routes are feasible. That must be checked
+by the scheduling/routing stage. No simulator performance is claimed.
+
+POLICY AND CAPACITY TRADE-OFF
+The brief says approximately 100 focus accounts but explicitly requires six
+normal dealer visits per working day, club outlets twice and other outlets
+once. With 25 working days there are 150 nominal visits per SO. Reserving all
+club obligations implies 142, 132 and 149 distinct outlets for the supplied
+club counts, rather than exactly 100. This baseline follows the explicit call
+norm and reports low-evidence capacity-fill selections separately.
+
+Filling nominal capacity leaves no unused normal-day slots as a reserve. Rain,
+unavailability, emergent drops and required retries can reduce coverage. We
+will measure that trade-off in the simulator instead of claiming that 450
+planned visits imply 450 completions. Selecting fewer accounts would require
+an explicit alternative to the six-per-day normal plan or the once-per-month
+non-club frequency rule; it is not silently substituted here.
+
+SELECTION ORDER
+1. Validate the ranking snapshot, workbook hash, dealer universe, current SO,
+   membership, parent mapping and the complete November calendar.
+2. Preserve every explicitly flagged club outlet and allocate two visits.
+   Related club outlets remain separately protected even when they share an
+   owner. Do not replace these with a single owner-level visit.
+3. Screen known coordinates against an optimistic six-visit-day travel bound:
+   direct travel from the SO start plus 6 x 25 minutes must fit 460 minutes.
+   This assumes zero other travel. A failure proves that a normal six-visit
+   day is impossible under the model; a pass does not prove a feasible tour.
+4. If a protected club cannot fit even that bound, fail visibly for review.
+   Never silently remove it to make the numbers work.
+5. Select optional outlets in the unchanged commercial rank order until the
+   nominal monthly visit budget is filled. Defer an optional outlet if its
+   optimistic travel bound fails or its owner is already represented.
+6. Unknown locations stay eligible under the supplied travel fallbacks and
+   receive a review flag. No invented coordinates or external API is used.
+7. A zero-score dealer can fill remaining capacity, but is clearly flagged.
+   This does not mean verified new-business potential. A never-purchased
+   account is separately identified; its commercial value remains uncertain.
+8. Give every selected and deferred dealer an explicit decision reason. If
+   insufficient eligible outlets remain, report the capacity shortfall and
+   retain all club obligations; do not manufacture duplicate dealer visits.
+
+GEOGRAPHY AND NEXT STAGE
+The selector records direct travel, normal/rain lower bounds, missing-location
+flags and shared-owner flags. It does not yet cluster stops into days or assign
+club visit dates. Passing a single-dealer lower bound is necessary but not
+sufficient for a joint daily route.
+
+Five unlocated upcountry calls on a rain day would consume 462.5 minutes under
+the supplied model, above the 460-minute dealer budget. The route/re-plan stage
+must account for this rather than assuming that five calls always fit.
+
+Next: allocate actual dates, separate club visits by at least ten days, group
+stops geographically and validate every route. Any repair that changes focus
+selection must be logged and the original focus-coverage implications retained.

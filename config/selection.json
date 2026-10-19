@@ -1,0 +1,24 @@
+{
+  "version": "focus-selection-v1",
+  "as_of": "2026-10-15",
+  "planning_month": "2026-11",
+  "normal_visits_per_day": 6,
+  "club_visits_per_month": 2,
+  "nonclub_visits_per_month": 1,
+  "club_min_gap_days": 10,
+  "protect_all_club_outlets": true,
+  "max_optional_outlets_per_root": 1,
+  "allow_optional_outlets_of_protected_roots": false,
+  "fill_normal_day_visit_budget": true,
+  "missing_location_policy": "simulator_fallback_with_review_flag",
+  "travel_model": {
+    "day_minutes": 540,
+    "demand_generation_minutes": 80,
+    "dealer_call_minutes": 25,
+    "road_factor": 1.35,
+    "speed_kmh": {"metro": 18, "upcountry": 30},
+    "unknown_location_travel_minutes": {"metro": 25, "upcountry": 45},
+    "rain_multiplier": 1.5,
+    "rain_visits_per_day": 5
+  }
+}
