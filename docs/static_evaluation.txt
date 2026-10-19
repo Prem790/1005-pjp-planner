@@ -1,0 +1,77 @@
+STATIC PRACTICE EVALUATION
+
+Reproduce
+Activate the project environment, then run from the repository root:
+python -m pjp evaluate-static
+Use --seeds 1 for one published practice run, or the default for 1, 2 and 3.
+This stage consumes existing plan and focus exports; it does not regenerate,
+re-rank, alter routes or use the seed to construct a different plan.
+
+Execution
+The runner invokes data/private/PJP_Simulator/simulate.py as a subprocess with
+the current Python interpreter. It omits --replan-cmd deliberately. The supplied
+simulator remains unmodified. Workbook, initial plan, focus file and simulator
+hashes are recorded and checked again after the runs. Unknown dealer IDs,
+incorrect ownership and invalid dates are rejected before execution to avoid
+the simulator silently ignoring malformed plan rows.
+
+Reconciliation
+For each run, every executed visit row must match a dated initial appointment.
+Daily planned and completed counts are reconciled to the underlying visit log.
+Adherence, initial-plan adherence, focus coverage, club cadence, drop response
+and missed-visit counts are independently recalculated from execution data.
+A club requires two completed visits for coverage, with a further minimum ten
+calendar days between its first two visits to satisfy cadence. A missed club
+appointment therefore matters even when overall visit adherence remains high.
+Drop-response denominator is all revealed drop events, including any dealers
+outside the initial focus set. Events are only read AFTER a run for diagnostics.
+Reconciliation uses no simulator scoring function or world-generation import.
+
+Results for the current fixed plan
+Seed   Adherence   Focus coverage   Club cadence   Drop response
+1      96.22%      96.22%           85.19%         25.00%
+2      94.67%      94.33%           81.48%         25.00%
+3      92.67%      92.67%           74.07%          9.09%
+Mean   94.52%      94.41%           80.25%         19.70%
+
+Means are arithmetic means of the simulator's per-seed rates, not pooled event
+rates. Across runs: 34 visits missed due to weather, 34 due to unavailable
+dealers, six out of time, and no guardrail breaches. Every out-of-time miss is
+in SO-C. The baseline retains all appointments during simulated sales hikes;
+no hike cancellations occur because there is no evening re-planner.
+
+Interpretation
+The static plan exceeds the 90% adherence target on all three practice seeds.
+This is useful baseline evidence, not hidden-seed performance or a complete
+solution. The historical approximate 60% manual adherence is contextual; we
+have not run an equivalent manual plan in this simulator, so a causal uplift
+claim would be unsupported. Club coverage/cadence and timely response to new
+sales drops are much weaker than overall adherence. A high adherence rate
+alone is insufficient to meet the business objective.
+
+Fifteen SO-C routes were previously flagged by a hypothetical rain stress test;
+that does not mean all fifteen days actually receive rain in a seed. Actual
+weather is sparse and differs across runs, explaining why the six observed
+out-of-time failures are fewer than the stress-test risks.
+
+No re-plan failures are reported because no re-plan calls were made. Adaptive
+reliability, forecast handling, missed-visit recovery and sales-driven changes
+remain untested. No unofficial combined hiring score is inferred from the raw
+metrics; the supplied simulator does not define a complete weighted score.
+
+Next implementation
+Persist observed sales and completed obligations. Reschedule misses within
+remaining capacity, prioritize supported observed drops, cancel suitable hike
+visits, and respond to next-day forecasts without sacrificing club obligations
+or exceeding two visits per dealer. Compare adaptive and static runs using the
+same published practice seeds, and keep every change explainable. Do not feed
+events_revealed.csv or hidden event schedules into the re-planner.
+
+Files (all local and Git-ignored)
+artifacts/simulation/static/seed_1/, seed_2/, seed_3/: original simulator exports.
+baseline_report.txt / baseline_summary.json: consolidated baseline and hashes.
+seed_metrics.csv: scalar metrics per seed.
+territory_metrics.csv: adherence, coverage and misses by SO.
+weather_outcomes.csv: visit outcomes by SO and actual weather.
+event_diagnostics.csv: post-run events with focus membership and visit lag.
+verification.json: per-run reconciliation checks and unchanged-input record.
