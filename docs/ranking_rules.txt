@@ -1,0 +1,225 @@
+PJP DEALER RANKING RULES
+Version 1 — proposed baseline for the November 2026 assignment
+
+PURPOSE AND STATUS
+Rank every one of the 677 supplied dealers within its current SO territory,
+using explainable commercial signals. Produce features and reasons alongside
+the score. This specification is implemented by src/pjp/ranking.py. Rankings are generated
+locally; focus selection, scheduling and simulator evaluation remain pending.
+
+The weights, thresholds and peer comparison below are explicit starting
+assumptions, not learned coefficients or claims about the client's policies.
+We will evaluate them after building a working baseline.
+
+1. TIME AND DATA RULES
+Use only information dated on or before 15 October 2026. This is the initial
+planning snapshot for November; October 16-31 is unobserved. Do not fill that
+future interval with zeros or claim current conditions as of November 1.
+
+Join sales to Dealers by dealer_id. Use Dealers.so_id for current territory
+ownership; billed_by identifies the invoice officer, not necessarily the owner.
+Sum all supplied ledger rows, preserving negative returns and the audit's
+duplicate candidates. No reliable transaction ID supports deleting those rows.
+
+For observed dates, absence of sales rows means zero purchases, as documented
+in the workbook. Keep gross sale value, return value, net value, net sheets and
+net points separately. Use net value for value-loss scoring; show gross/returns
+in reasons so a returns-driven reduction is not mislabeled as lower demand.
+Use the supplied points_per_sheet map; signed sheets x points_per_sheet gives
+net points. Do not add the separate FOC field without a business rule.
+
+2. VALUE LOST — 55 PERCENT OF THE TOTAL SCORE
+Use the latest complete month and quarters, so partial October does not create
+a false monthly decline. Net V(period) includes returns. All periods below are
+closed inclusive intervals.
+
+Month-on-month monthly loss:
+  L_mom = max(0, V(Aug 2026) - V(Sep 2026))
+Quarter-on-quarter loss expressed per month:
+  L_qoq = max(0, V(Apr-Jun 2026) - V(Jul-Sep 2026)) / 3
+Year-on-year same-quarter loss expressed per month:
+  L_yoy = max(0, V(Jul-Sep 2025) - V(Jul-Sep 2026)) / 3
+
+If a reference period has net value <= 0, its positive-business loss is zero;
+flag unusual net-return periods separately. A zero reference does not support
+a percentage-loss claim. Do not invent a former business level for a dealer
+first observed purchasing later in the ledger.
+
+  raw_value_loss = 0.40*L_mom + 0.30*L_qoq + 0.30*L_yoy
+
+Keep all three losses visible. Normalize this combined raw amount within the
+current SO to obtain G in [0,100], as specified in section 6. This makes large
+absolute losses matter. A larger percentage loss alone does not imply a
+higher score. The three comparisons overlap; this is an ensemble of warning
+signals, not three independent losses to add to a financial recovery estimate.
+
+3. SUDDEN RECENT DROP — 30 PERCENT
+Recent window: Oct 2-15, 2026 (14 calendar days, two complete seven-day blocks).
+Reference: Aug 7-Oct 1, 2026 (56 calendar days, eight seven-day blocks).
+Include all sales dates, including Sundays if present in the historical ledger.
+Equal whole-week windows avoid mismatching weekday composition.
+
+  expected_14_day_net_value = max(0, reference_56_day_net_value) / 4
+  observed_14_day_net_value = recent_14_day_net_value
+  raw_recent_loss = max(0, expected_14_day_net_value - observed_14_day_net_value)
+
+Buying is irregular, so quiet days alone are weak evidence. Count positive
+Sale transaction dates and active weeks in the reference window. The eight
+reference weeks are consecutive seven-day blocks anchored at Aug 7.
+
+  support = min(1, positive_sale_days/3) * min(1, active_reference_weeks/4)
+  supported_raw_sudden_loss = raw_recent_loss * support
+
+Normalize supported_raw_sudden_loss within the SO to obtain D in [0,100].
+With no positive reference expectation, set D=0 and mark the signal unavailable.
+
+Flag a strong_drop_signal only when observed value is <= 50% of positive
+expected value and support=1. It is evidence to investigate, not a proven
+cause or confirmation that a simulator drop event occurred. Low-support
+losses remain visible but are downweighted. Report gross sales and returns
+alongside this flag.
+
+For example, a 14-day expected value of 100,000 and actual value of 30,000
+implies 70,000 recent loss. With full support it gets the full raw loss; one
+isolated historical purchase should receive substantially less support.
+
+This initial historical feature is not the final nightly detector: simulator
+sales arrive as sheets and points, not rupee sales. The adaptive stage needs
+its own quantity-based detector using only observed state history.
+
+4. POTENTIAL PROXY — 10 PERCENT, DELIBERATELY LOW CONFIDENCE
+No exact GST turnover slab is available, the broad proxies are upper bounds,
+and sales values are scaled. Therefore do not subtract sales from a GST
+midpoint or claim an exact wallet share. GST compliance colours have no
+provided semantics and do not become a made-up risk score.
+
+Use a conservative, relative investigation signal:
+  a. Resolve parent/child outlets to a root owner group. Use the parent's GST
+     proxy, and aggregate group purchases once, not once per outlet.
+  b. Current own monthly purchases = net value in Jul 18-Oct 15 / 3 (90 days).
+  c. Build peers with the same current SO and identical GST turnover proxy,
+     counting each root once. Peers require positive 90-day net purchases.
+  d. Require at least 10 qualifying peer roots. Otherwise no supported bonus.
+  e. Let M be the peer median monthly purchases, and C be the owner's own
+     monthly purchases, floored at zero only for this opportunity ratio.
+     If M > 0:
+       P = 100 * max(0, 1 - C/M)
+     Otherwise P = 0, with insufficient-evidence flag.
+
+P means 'buys less than coarse peers; investigate', not proven unmet demand.
+Broad proxy buckets do not establish equal business sizes or product mix.
+Use P only for a root with a positive purchase in the preceding 180 days.
+Never-purchased and long-dormant roots get no automatic headroom bonus.
+
+Missing GST/proxy or insufficient peers: P=0 as NO SUPPORTED BONUS, with
+potential_status='unknown'. This is not a claim that true potential is zero.
+Do not redistribute the missing component's weight to the other components.
+Keep known-opportunity and unknown-potential flags in the exported ranking.
+
+Shared-root outlets receive the group's potential context, but it is not
+separate recoverable revenue for each outlet. Focus selection must review
+related outlets together to avoid double-counting commercial opportunity.
+
+5. SCHEME OPPORTUNITY — 5 PERCENT
+Membership and schemes are separate: club membership creates a coverage
+obligation even if scheme targets are missing. Use loyalty_club_member,
+not a Silver or other tier label, to identify membership.
+
+For club dealers, calculate owner-group net points in applicable annual and
+quarterly windows through Oct 15. For Oct-Dec quarterly targets reuse Jul-Sep
+targets, exactly as instructed, and mark them as assumed. Do not carry forward
+the August-only club monthly top-up as a November offer.
+
+For each applicable supplied/assumed scheme:
+  - Find the first slab target strictly above net points already earned.
+  - gap = next_target - earned_points.
+  - expected_30_day_points = max(0, net_points_in_last_90_days) / 3.
+  - If expected_30_day_points > 0:
+      C_scheme = 100 * max(0, 1 - gap/expected_30_day_points).
+  - Otherwise, or if no next slab/targets exist, use zero supported bonus.
+Use the maximum C_scheme across applicable schemes, not their sum. This is
+an estimated near-term opportunity, not a promise of reward eligibility.
+
+For the initial November ranking, non-club monthly scheme progress is not yet
+observed: set the scheme bonus to zero, retain the monthly rules for nudges,
+and never carry September or October earned points into November. Treat all
+as-of scheme gaps as dated context, not November's eventual actual balance.
+
+6. NORMALIZATION AND FINAL SCORE
+For a nonnegative raw value-loss or supported-sudden-loss feature x:
+  q = 95th percentile of strictly positive x values within that SO.
+  score(x) = 100 * min(x/q, 1), if q > 0; otherwise 0.
+Use linear quantile interpolation; x=0 always maps to 0. Cap outliers but keep
+the uncapped amount in the output and tie-breaking. A negative or non-finite
+raw magnitude is a validation error, not silently accepted.
+
+  priority_score = 0.55*G + 0.30*D + 0.10*P + 0.05*C_scheme
+
+Scores are relative within each SO. Do not compare SO-A's 80 with SO-C's 80 as
+equal rupee opportunities. Keep full precision for sorting, and round only
+the displayed score.
+
+Deterministic order: score descending, raw weighted loss descending, recent
+90-day net value descending, dealer_id ascending. Use a stable sort.
+
+Illustration only: G=80, D=60, P=40, C_scheme=20 gives
+44 + 18 + 4 + 1 = 67. This is not a measured dealer result.
+
+7. RECENCY, DATA QUALITY AND VISIT OBLIGATIONS
+Classify each outlet using its last positive Sale transaction on/before Oct 15:
+  active: within 90 days; lapsed: 91-180; dormant: over 180;
+  never_purchased: no positive Sale transaction in the supplied history.
+These are descriptive categories, not proof of onboarding date or closure.
+
+Score every dealer, including never-purchased outlets. Preserve all IDs.
+Never-purchased and dormant outlets are not automatically high potential just
+because purchases are zero. Dormant dealers can still rank on evidenced
+historical losses. Never-purchased non-club candidates remain visible for a
+separately explained exploration choice during focus selection.
+
+Do not multiply the commercial score by GPS completeness or penalize a dealer
+because its route is inconvenient. Route feasibility is a later constraint.
+Do not penalize historical over-visiting as if it proved the dealer has no
+commercial value. Keep it as a planning-control flag.
+
+Club inclusion/cadence is a separate focus-selection policy, not an artificial
+score increase. Start focus selection by reserving the 27 club outlets' visit
+requirements, then fill remaining feasible slots from the ranked list. One
+club outlet requires two visits, a normal non-club focus outlet one. Verify
+route feasibility and related-owner concentration before final selection.
+This specification does not yet select focus sets or promise 150 completed
+visits per SO under disruptions.
+
+8. OUTPUT CONTRACT FOR THE RANKING IMPLEMENTATION
+One row per original dealer, with at least:
+  dealer_id, so_id, root_dealer_id, rank_within_so, priority_score;
+  net values in all comparison windows; L_mom, L_qoq, L_yoy;
+  raw_value_loss, G, expected_recent_value, actual_recent_value;
+  sudden_support, supported_raw_sudden_loss, D, strong_drop_signal;
+  gross-sale/return diagnostics; first/last observed purchase dates;
+  recency_category; GST proxy, peer count, peer median, P, potential_status;
+  scheme name, target source, net points, next slab, gap, C_scheme;
+  is_club, visits_required_if_selected, has_location;
+  missing-data and shared-owner flags, as_of, and readable reason.
+
+Reasons must use measured amounts and qualifiers. 'Recent net sales fell;
+check returns and stock availability' is supported. 'A competitor won the
+dealer' is not established. Never describe a scaled amount as a known exact
+commercial rupee value or a weak GST proxy as a measured turnover figure.
+
+9. ACCEPTANCE CHECKS AND NEXT STEP
+Implementation checks: all 677 dealers exactly once; correct current owner;
+as-of cutoff; returns preserved; zero/no-history handling; identical root
+scheme context for related outlets; no unsupported scheme gap; deterministic
+ties; zero raw losses map to zero; missing GST cannot fabricate opportunity;
+no NaN/inf scores; membership agrees with the 27 explicit club flags.
+
+Then inspect the top and bottom dealers for every SO and independently check
+representative raw calculations. Compare top-20 stability when moving five
+percentage points between value-loss and sudden-drop weights. Keep the
+default weights unless evidence justifies a documented change; do not tune
+against unpublished seeds or read revealed simulator events as live input.
+
+The feature and ranking module now implements this specification and exports
+ranked dealer tables with explanations. Review these results before focus
+selection or scheduling. Run commands and verification are in README.md.

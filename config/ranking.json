@@ -1,0 +1,111 @@
+{
+  "version": "ranking-rules-v1",
+  "status": "proposed_baseline_not_yet_simulator_validated",
+  "as_of": "2026-10-15",
+  "planning_month": "2026-11",
+  "component_weights": {
+    "value_loss": 0.55,
+    "sudden_drop": 0.3,
+    "potential_proxy": 0.1,
+    "scheme_opportunity": 0.05
+  },
+  "value_loss_weights": {
+    "mom": 0.4,
+    "qoq": 0.3,
+    "yoy": 0.3
+  },
+  "comparison_periods": {
+    "mom_reference": [
+      "2026-08-01",
+      "2026-08-31"
+    ],
+    "mom_current": [
+      "2026-09-01",
+      "2026-09-30"
+    ],
+    "qoq_reference": [
+      "2026-04-01",
+      "2026-06-30"
+    ],
+    "qoq_current": [
+      "2026-07-01",
+      "2026-09-30"
+    ],
+    "yoy_reference": [
+      "2025-07-01",
+      "2025-09-30"
+    ],
+    "yoy_current": [
+      "2026-07-01",
+      "2026-09-30"
+    ],
+    "sudden_reference": [
+      "2026-08-07",
+      "2026-10-01"
+    ],
+    "sudden_current": [
+      "2026-10-02",
+      "2026-10-15"
+    ],
+    "potential_recent_90_days": [
+      "2026-07-18",
+      "2026-10-15"
+    ]
+  },
+  "normalization": {
+    "method": "cap_at_positive_values_95th_percentile_within_current_owner_so",
+    "quantile": 0.95,
+    "quantile_interpolation": "linear",
+    "zero_input_score": 0,
+    "all_zero_group_score": 0,
+    "scope": [
+      "weighted_raw_value_loss",
+      "supported_raw_sudden_loss"
+    ]
+  },
+  "sudden_drop": {
+    "recent_calendar_days": 14,
+    "reference_calendar_days": 56,
+    "reference_weeks": 8,
+    "strong_signal_drop_fraction": 0.5,
+    "full_support_positive_sale_days": 3,
+    "full_support_active_reference_weeks": 4
+  },
+  "potential": {
+    "minimum_same_so_same_proxy_peer_roots": 10,
+    "require_positive_net_reference_purchases_for_peer_pool": true,
+    "exact_gst_wallet_share_supported": false,
+    "missing_or_insufficient_evidence_component_score": 0,
+    "missing_component_interpretation": "no_supported_bonus_not_zero_business_potential",
+    "renormalize_weights_for_missing_components": false,
+    "turnover_band_midpoint_imputation": false
+  },
+  "scheme": {
+    "estimated_opportunity_window_days": 30,
+    "rate_reference_days": 90,
+    "quarterly_target_assumption": "reuse_Jul_Sep_targets_for_Oct_Dec_as_instructed",
+    "use_expired_August_club_monthly_targets_for_November": false,
+    "initial_nonclub_november_scheme_bonus": 0
+  },
+  "recency": {
+    "active_max_days_since_positive_sale": 90,
+    "lapsed_max_days_since_positive_sale": 180,
+    "never_purchased_definition": "no_positive_sale_row_on_or_before_as_of"
+  },
+  "rank_order": [
+    "priority_score_desc",
+    "raw_weighted_value_loss_desc",
+    "recent_90_day_net_value_desc",
+    "dealer_id_asc"
+  ],
+  "selection_not_ranking_constraints": {
+    "loyalty_club_flag_source": "Dealers.loyalty_club_member",
+    "club_visits": 2,
+    "nonclub_normal_visits": 1,
+    "all_dealer_max_visits": 2,
+    "club_min_gap_days": 10,
+    "missing_location_is_automatic_exclusion": false,
+    "current_owner_source": "Dealers.so_id",
+    "focus_selection_implemented": true
+  }
+}
