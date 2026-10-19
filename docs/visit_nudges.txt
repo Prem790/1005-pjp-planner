@@ -1,0 +1,73 @@
+PRE-VISIT WHATSAPP TALKING POINTS
+
+Purpose
+Give the Sales Officer a short, specific conversation prompt before each planned
+visit. All messages are drafts generated locally. There is no WhatsApp account,
+API integration, external LLM call or message delivery in this POC stage.
+
+Inputs
+The dated plan, final scheduled focus set (including recorded route repairs),
+ranking comparison periods, snapshot date, and config/nudges.json. Each message
+identifies the officer, dealer, appointment and October 15 evidence date.
+A record schedules delivery for 18:30 IST on the previous calendar day, including
+Sunday evenings when the appointment is Monday.
+
+Content rules
+Select one primary talking point, in this order:
+1. A supported recent drop: actual October 2–15 net sales against its historical
+   14-day baseline, calculated from the preceding 56 days. These are scaled
+   values, not an observation about current November trading.
+2. A return-related net reduction: ask the officer to check returns and fresh
+   demand. Say returns MAY explain it; do not assert an unproven cause.
+3. No positive sale in the supplied history: check buying need and suitability.
+4. Lapsed/dormant purchase history: state the historical last positive sale date
+   and explore reactivation. No claim that the dealer remains dormant in November.
+5. Weighted sales decline: show the ranking's monthly-equivalent weighted
+   MoM/QoQ/YoY value-loss measure, not an exact amount of recoverable revenue.
+6. A supported coarse GST peer signal: verify buying potential. Do not invent
+   exact turnover, market share, wallet share, competitor buying or credit terms.
+7. Otherwise ask about current stock and buying needs without inventing a problem.
+
+For club visits, add the next-slab point gap when the scheme window covers the
+visit and snapshot. Attribute points to the owner group. Label reused quarterly
+targets as assumed, and ask the SO to verify the current balance and offer.
+Missing targets generate a request to confirm scheme terms; expired schemes
+are not promoted. Related outlets do not receive independent copies of earned
+owner-group points as if those points were separately earned by each outlet.
+Missing GPS adds a request to confirm the dealer's location pin.
+
+Every message contains a next action and must have fewer than 300 Unicode
+characters. Optional scheme context may be omitted if it would exceed the
+limit, with the omission logged in its evidence. Required context is never
+silently truncated; an oversized required message causes a generation error.
+These templates favor auditability over varied prose. Product-tier stoppages
+are not claimed because this stage does not calculate tier-specific stoppages.
+
+Outputs under artifacts/nudges/ (Git-ignored)
+visit_nudges.csv: all scheduled drafts, timing, topic and character counts.
+nudge_evidence.jsonl: each full draft plus rendered claims and source fields.
+example_nudges.csv / .txt: diverse examples and readable supporting evidence.
+nudge_summary.json: input hashes, counts, topic mix and operational limitations.
+verification.json: independent checks against the plan, focus set and workbook.
+
+Reproduce from repository root after setup
+python -m pjp nudge
+python scripts/verify_nudges.py --workbook data/private/PJP_Assignment_Sample_Data.xlsx
+
+Validation
+The independent verifier imports neither generator nor ranking implementation.
+It checks every visit identity, appointment, previous-evening timestamp,
+character count, evidence mapping and input hash. It recalculates reported
+weighted losses and recent sales from the signed ledger, checks historical
+positive-sale dates and return figures, and recomputes owner-group scheme
+points and their gap against supplied targets. The workbook is never modified.
+Synthetic tests exercise missing information, false zero claims, signed returns,
+shared-owner targets, expired schemes, temporal leakage, ownership and length.
+
+Limitations
+Only the October 15 snapshot is available. Repeated club appointments therefore
+use the same historical evidence, explicitly dated, rather than invented
+intervening progress. An operational implementation must refresh these drafts
+after re-planning from observed sales, revised appointments and verified scheme
+balances. Point eligibility, offer validity and missing locations need field
+confirmation. Examples are not evidence that a message was delivered or read.

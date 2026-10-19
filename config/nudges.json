@@ -1,0 +1,7 @@
+{
+  "version": "visit-nudges-v1",
+  "max_characters_exclusive": 300,
+  "send_time_previous_evening": "18:30",
+  "timezone": "Asia/Kolkata",
+  "example_count": 12
+}
