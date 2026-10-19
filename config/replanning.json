@@ -1,0 +1,19 @@
+{
+  "version": "evening-replanner-v1",
+  "observation_window_workdays": 3,
+  "minimum_baseline_sheets_per_workday": 0.5,
+  "drop_ratio": 0.45,
+  "recovery_ratio": 0.8,
+  "hike_ratio": 1.9,
+  "hike_hold_calendar_days": 7,
+  "drop_response_calendar_days": 3,
+  "club_min_gap_days": 10,
+  "max_visits_per_dealer": 2,
+  "max_visits_per_day": 6,
+  "disrupted_visits_per_day": 5,
+  "maximum_observation_window_workdays": 5,
+  "drop_log_evidence_threshold": 2.3,
+  "extra_visit_log_evidence_threshold": 4.0,
+  "hike_log_evidence_threshold": 2.7,
+  "count_dispersion": 2.0
+}
