@@ -134,36 +134,68 @@ def build_submission(root=Path('artifacts')):
         raise ValueError('Write-up must be exactly two pages; adjust layout before submitting')
     text = ['NOVEMBER FIELD-SALES PLANNER']+[f'{label}\n{text}\n' for label,text in methods]
     text += ['RESULTS AND PRACTICAL LIMITS']+[' | '.join(row) for row in data]+[f'{label}\n{text}\n' for label,text in results]
-    (out/'approach_and_results.txt').write_text('\n\n'.join(text)+'\n')
+    reports = root/'reports'
+    reports.mkdir(parents=True,exist_ok=True)
+    (reports/'approach_and_results.txt').write_text('\n\n'.join(text)+'\n')
+    return package_submission(root)
+
+
+def package_submission(root=Path('artifacts')):
+    """Keep one reviewer-facing format per deliverable; retain detail outside ZIP."""
+    from pypdf import PdfReader
+    root = Path(root)
+    out = root/'submission'
+    pdf = out/'approach_and_results.pdf'
+    if len(PdfReader(pdf).pages)!=2:
+        raise ValueError('Submission write-up must be exactly two pages')
+    for path in [root/'plan/verification.json',root/'nudges/verification.json',
+                 root/'simulation/static/verification.json',root/'simulation/adaptive/verification.json']:
+        if json.loads(path.read_text())['status']!='passed':
+            raise ValueError(f'Verification is not complete: {path}')
+    # Preserve the editable report locally when migrating an existing package.
+    editable = out/'approach_and_results.txt'
+    if editable.exists():
+        reports = root/'reports'
+        reports.mkdir(parents=True,exist_ok=True)
+        shutil.copyfile(editable,reports/'approach_and_results.txt')
+    obsolete = ['approach_and_results.txt','plan_november.csv','focus_repairs.csv',
+                'whatsapp_nudges.csv','simulator_comparison.csv',
+                'adaptive_verification.json','manifest.json']
+    obsolete += [f'practice_seed_{seed}/static_summary.json' for seed in [1,2,3]]
+    for name in obsolete:
+        (out/name).unlink(missing_ok=True)
     copies = {root/'plan'/f'plan_{so}.csv':out/f'plan_{so}.csv' for so in ['SO-A','SO-B','SO-C']}
-    copies.update({root/'plan/plan_november.csv':out/'plan_november.csv',root/'plan/focus_repairs.csv':out/'focus_repairs.csv',
-        root/'nudges/example_nudges.txt':out/'whatsapp_nudges_with_evidence.txt',root/'nudges/example_nudges.csv':out/'whatsapp_nudges.csv',
-        root/'simulation/adaptive/comparison_report.txt':out/'simulator_comparison.txt',root/'simulation/adaptive/comparison.csv':out/'simulator_comparison.csv',
-        root/'simulation/adaptive/verification.json':out/'adaptive_verification.json'})
+    copies.update({root/'nudges/example_nudges.txt':out/'whatsapp_nudges_with_evidence.txt',
+                   root/'simulation/adaptive/comparison_report.txt':out/'simulator_comparison.txt'})
     for seed in [1,2,3]:
         copies[root/f'simulation/adaptive/seed_{seed}/summary.json'] = out/f'practice_seed_{seed}'/'summary.json'
-        copies[root/f'simulation/static/seed_{seed}/summary.json'] = out/f'practice_seed_{seed}'/'static_summary.json'
     for source,destination in copies.items():
         destination.parent.mkdir(parents=True,exist_ok=True)
         shutil.copyfile(source,destination)
-    (out/'READ_ME.txt').write_text('CONFIDENTIAL ASSIGNMENT SUBMISSION\n\n'
-        'Code and one-command instructions are in the accompanying Git repository README.\n'
-        'Run from the repository root: python -m pjp run\n'
-        'Evening command: python -m pjp replan --state STATE.json --plan CURRENT_PLAN.csv --out NEXT_PLAN.csv\n'
-        'The generated artifacts/replanning/context.json must exist (created by the full run).\n'
-        'Default memory is stored beside the simulator-provided plan, isolating simulator runs.\n'
-        'Use --memory PATH to retain explicit memory and decision logs in production.\n\n'
-        'Includes per-SO November plans, adaptive practice summaries, static comparisons,\n'
-        'WhatsApp draft examples with data, and the two-page approach/results write-up.\n'
-        'The workbook, source documents and supplied simulator are intentionally excluded.\n'
-        'No messages have been sent. No commits or uploads are performed by this workflow.\n')
-    files = {str(p.relative_to(out)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(out.rglob('*')) if p.is_file() and p.name!='manifest.json'}
-    (out/'manifest.json').write_text(json.dumps(dict(source_sha256=static['input_sha256'].get('data/private/PJP_Assignment_Sample_Data.xlsx',json.loads((root/'replanning/context.json').read_text())['source_sha256']),
+    readme = out/'READ_ME.txt'
+    readme.write_text('CONFIDENTIAL ASSIGNMENT SUBMISSION\n\n'
+        '1. plan_SO-A.csv, plan_SO-B.csv, plan_SO-C.csv: November appointment plans.\n'
+        '2. practice_seed_1/summary.json through practice_seed_3/summary.json: adaptive results.\n'
+        '3. whatsapp_nudges_with_evidence.txt: twelve drafts with the data behind them.\n'
+        '4. approach_and_results.pdf: two-page approach, assumptions and results.\n'
+        '5. simulator_comparison.txt: static/adaptive averages and trade-offs.\n\n'
+        'Code and setup instructions: accompanying Git repository README.\n'
+        'From the repository root after setup: python -m pjp run\n'
+        'Simulator callback: python -m pjp replan\n'
+        'The simulator appends --state STATE.json --plan CURRENT_PLAN.csv --out NEXT_PLAN.csv.\n'
+        'Run the full workflow first to generate artifacts/replanning/context.json.\n'
+        'Default memory persists beside the simulator-provided plan, isolating runs.\n\n'
+        'Detailed CSVs, static summaries, verification records, repair logs and editable report\n'
+        'remain in local artifacts outside this concise bundle and can be regenerated.\n'
+        'Source workbook, documents and supplied simulator are excluded. No messages are sent.\n')
+    members = sorted([str(p.relative_to(out)) for p in copies.values()]+[pdf.name,readme.name])
+    files = {name:hashlib.sha256((out/name).read_bytes()).hexdigest() for name in members}
+    source_hash = json.loads((root/'replanning/context.json').read_text())['source_sha256']
+    (root/'submission_manifest.json').write_text(json.dumps(dict(source_sha256=source_hash,
         confidential=True,pdf_pages=2,files=files),indent=2)+'\n')
     archive = root/'submission_bundle.zip'
     with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as z:
-        for p in sorted(out.rglob('*')):
-            if p.is_file():
-                z.write(p,p.relative_to(out))
-    print(f'Private submission prepared: {out}; two-page PDF and {archive}')
+        for name in members:
+            z.write(out/name,name)
+    print(f'Private submission prepared: {len(members)} files in {archive}')
     return out

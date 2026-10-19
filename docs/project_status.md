@@ -16,8 +16,10 @@ re-plan. The complete workflow is `python -m pjp run` from the repository root.
 - Run static and adaptive practice seeds 1–3 with isolated per-run memory.
 - Independently verify source-derived calculations, all message evidence,
   initial routes, adaptive scores and every evening's full future plan.
-- Package per-SO plans, practice summaries, nudge examples, comparisons,
-  verification and a two-page PDF write-up in a private submission bundle.
+- Package per-SO plans, three adaptive practice summaries, one nudge text set,
+  one comparison text report, a two-page PDF and a short guide: ten files total.
+- Keep detailed results, editable report, verification and package manifest
+  outside the concise reviewer bundle.
 - Keep source documents, simulator and all confidential outputs Git-ignored.
 
 ## Results and limitations

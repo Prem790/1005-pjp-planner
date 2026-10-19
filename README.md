@@ -64,10 +64,15 @@ The full run creates `artifacts/submission/` and
 bundle contains:
 
 - Per-SO November CSVs and the combined initial plan.
-- Adaptive `summary.json` for each practice seed, with static comparisons.
+- Adaptive `summary.json` for each of the three practice seeds.
 - Twelve WhatsApp examples with their supporting evidence.
-- The two-page `approach_and_results.pdf` and an editable text version.
-- A comparison report, focus-repair log, verification record and file manifest.
+- The two-page `approach_and_results.pdf`.
+- One readable comparison report and a short bundle guide.
+
+The reviewer bundle contains ten files, with one format per deliverable. Detailed
+CSVs, static summaries, repair logs and verification records remain outside the
+bundle under `artifacts/`. The editable write-up is in `artifacts/reports/`;
+package checksums are in `artifacts/submission_manifest.json`.
 
 Use the Git repository for source code and documentation. Provide the confidential
 bundle privately to the assignment reviewers. The bundle does not contain the
