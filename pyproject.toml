@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "1005-pjp-planner"
+version = "0.1.0"
+description = "Explainable dealer prioritization and field-sales planning POC"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy==2.3.5",
+    "pandas==2.2.3",
+    "openpyxl==3.1.5",
+    "reportlab==4.4.9",
+    "pypdf==6.10.0",
+]
+
+[project.scripts]
+pjp = "pjp.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

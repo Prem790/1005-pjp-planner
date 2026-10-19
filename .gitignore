@@ -1,0 +1,31 @@
+# Confidential inputs and generated results stay local.
+data/private/*
+!data/private/.gitkeep
+artifacts/*
+!artifacts/.gitkeep
+
+# Guard against accidentally adding source documents elsewhere.
+*.xlsx
+*.xls
+*.xlsm
+*.docx
+*.pdf
+*.mp4
+*.mov
+*.zip
+
+# Python and local tools.
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+build/
+dist/
+.env
+.env.*
+!.env.example
+.DS_Store
