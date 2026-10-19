@@ -1,0 +1,11 @@
+{
+  "version": "november-calendar-v1",
+  "random_seed": 1005,
+  "iterations_per_attempt": 30000,
+  "max_attempts": 4,
+  "club_target_gap_days": 14,
+  "priority_date_weight": 1.5,
+  "start_time": "09:30",
+  "demand_generation_policy": "Two 40-minute blocks after dealer route; reserve travel within those blocks. No DG account identities supplied.",
+  "max_focus_repairs_per_officer": 3
+}

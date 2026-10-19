@@ -1,0 +1,90 @@
+NOVEMBER CALENDAR AND ROUTES — v1
+
+Inputs and purpose
+The plan consumes the selected focus dealers, their commercial priorities, the
+workbook officer start points, and its November working calendar. It uses only
+the October 15 snapshot. No hidden simulation events or practice-seed outcomes
+are used to construct this calendar.
+
+Monthly obligations
+November has 25 working days per officer (Monday–Saturday). Six dealer visits
+per day produce 150 appointments per officer. All explicitly flagged clubs
+receive two appointments, fourteen calendar days apart; non-clubs receive one.
+The provisional focus sets therefore contain 142, 132 and 149 distinct dealers.
+This follows the brief's explicit six-per-day requirement, above its approximate
+100-account description. No dealer receives more than two appointments.
+
+Date assignment
+High-priority clubs get the earliest first-round slots, spread over the first
+ten working days; their second round is exactly fourteen calendar days later.
+Those commitments remain fixed during optional-appointment swaps.
+Remote routes are seeded with a far dealer, then expanded using full-route
+travel and geographic proximity. Remaining accounts start in commercial rank
+order. A deterministic simulated-annealing search exchanges optional visits
+between dates, minimizing travel and priority-weighted lateness. Overtime has
+a steep penalty. Only a fully feasible candidate can be exported.
+
+Heuristic parameters are in config/scheduling.json. The search is reproducible
+with a fixed random seed. It is not a proof of the globally optimal monthly
+calendar. Failure to find a calendar raises an error, preserving focus inputs;
+it does not prove mathematical infeasibility. A bounded repair step can defer
+an affected non-club dealer in a small remote cluster: direct travel exceeds
+160 minutes and fewer than six currently selected known locations lie within
+30 travel minutes of that dealer. It chooses the lowest commercial score in
+those affected clusters, then the next ranked eligible reserve with an unused
+owner root. All club commitments are protected. Every replacement is recorded
+in focus_repairs.csv; the original selection outputs remain unchanged.
+Final focus membership is exported as scheduled_focus_dealers.csv. Search
+failure, rather than a proof that no possible route exists, motivates repairs.
+
+Daily route order
+For each proposed set of at most six accounts, an exact Held–Karp calculation
+finds the shortest open route through the known locations from the officer's
+fixed start. There is no return leg in the supplied simulator. Unknown-location
+accounts have constant travel time and do not move the simulated position.
+They are merged into the known route in descending priority without changing
+its total travel time. This does not optimize the order of known dealers for
+bad weather, and a nightly re-planner must decide which five to keep.
+
+Time assumptions
+A workday is 09:30–18:30. Six dealer services take 150 minutes (25 each).
+Travel plus dealer service must fit within 460 minutes. The remaining eighty
+minutes reserve two demand-generation calls, including travel: 17:10–17:50
+and 17:50–18:30. No DG account identities or locations were supplied; these
+are capacity reservations, not invented customer appointments. Routes that
+finish early leave additional slack before the DG blocks. No lunch duration
+is specified in the simulator; this baseline does not subtract a separate
+lunch allowance. Production timing would need field agreement on those slots
+and return-to-base requirements.
+
+Travel assumptions
+Haversine distance x 1.35 road factor; 18 km/h metro, 30 km/h upcountry.
+Unknown locations use the simulator's 25/45-minute allowance. Missing GPS is
+flagged per appointment: numerical feasibility under this model does not
+establish real-world geographic feasibility. Route minutes are retained to
+six decimals; displayed clock times round upwards to the next minute.
+
+Weather diagnostic
+Every day is initially planned as normal capacity. daily_routes.csv separately
+checks whether its first five stops fit within 460 minutes at 1.5x travel time.
+This is a stress test, not a forecast or evidence of 90% adherence. The sixth
+stop needs cancellation or rescheduling on disrupted days even when the first
+five fit. Unknown-location upcountry days can also overrun at five visits.
+Unavailable dealers, sales changes and forecast-driven changes belong to the
+next adaptive-planning milestone.
+
+Outputs (artifacts/plan/, private and Git-ignored)
+plan_november.csv: the full simulator-compatible plan, with explanations.
+plan_SO-A.csv / plan_SO-B.csv / plan_SO-C.csv: required per-officer plans.
+daily_routes.csv: time budgets, slack, DG blocks, GPS flags and rain diagnostic.
+focus_repairs.csv: explicit replacement log, including priorities and reasons.
+scheduled_focus_dealers.csv: final membership after the recorded repairs.
+plan_summary.json / .txt: assumptions, configuration, hashes and territory totals.
+verification.json: independent source/CSV reconciliation, generated separately.
+
+Verification
+python scripts/verify_plan.py --workbook data/private/PJP_Assignment_Sample_Data.xlsx
+The verifier does not import the scheduling or routing implementation. It reads
+the workbook and exports independently, checks the frequency of every focus
+account and all club gaps, recalculates each leg, confirms daily budgets and
+arrival times, and verifies that the source workbook remains unchanged.
