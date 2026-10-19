@@ -1,88 +1,242 @@
-# 1005 PJP planner
+# 1005 PJP Planner
 
-A complete local proof of concept for November 2026 dealer ranking, focus
-selection, scheduling, routing, WhatsApp talking points and evening re-planning.
-It runs the supplied simulator on practice seeds 1–3 and packages the required
-private deliverables. No commits, uploads or messages are sent by the workflow.
+Turn dealer sales and visit history into a feasible November 2026 field-sales
+plan, then adapt the remaining calendar to missed visits, sales changes and
+weather forecasts. This local Python POC implements the five-stage assignment
+for 1005 Intelligence Labs and packages its plans, evidence and practice results.
 
-## Run the whole project
+![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
+![pandas](https://img.shields.io/badge/pandas-2.2.3-150458?logo=pandas&logoColor=white)
+![NumPy](https://img.shields.io/badge/NumPy-2.3.5-013243?logo=numpy&logoColor=white)
+![Tests](https://img.shields.io/badge/Tests-unittest-546E7A)
 
-On this workstation, the project environment is already set up:
+[Features](#core-features) · [Architecture](#architecture) ·
+[Setup](#setup-and-installation) · [Usage](#usage) ·
+[Results](#practice-results) · [Deliverables](#submission-deliverables)
+
+## Core features
+
+| Capability | Implementation |
+| --- | --- |
+| Explainable dealer ranking | Score all 677 dealers using value-weighted decline, supported drops, coarse GST peer context and scheme opportunity; export calculation evidence. |
+| Constrained monthly planning | Select focus dealers and schedule 450 appointments across 75 officer-days, protecting club obligations and logging selection repairs. |
+| Feasible daily routes | Exact small-route optimization with stated travel assumptions, service times and reserved demand-generation time. |
+| Stateful evening re-planning | Accumulate observed sales, distinguish supported changes from noise, recover missed visits and apply forecast capacity/travel constraints. |
+| Evidence-backed talking points | Generate 450 WhatsApp-style drafts under 300 characters, with 12 examples and the data behind each message. |
+| Reproducible evaluation | Run the unmodified supplied simulator on practice seeds 1–3, verify outputs independently and build a concise private submission bundle. |
+
+## Architecture
+
+The full workflow prepares the initial plan, evaluates static and adaptive
+policies, verifies their outputs and packages the results. The sequence below
+shows the adaptive path; static evaluation omits the evening callback.
+
+```mermaid
+sequenceDiagram
+    actor Reviewer
+    participant CLI as CLI and pipeline
+    participant Files as Local artifacts
+    participant Sim as Supplied simulator
+    participant Replan as Evening re-planner
+    participant Memory as Per-run memory
+
+    Reviewer->>CLI: python -m pjp run
+    CLI->>CLI: Audit, rank, select, schedule and route
+    CLI->>Files: Initial plan, historical context and nudge drafts
+    CLI->>Sim: Workbook, initial plan and callback
+    loop Each evening with remaining working days
+        Sim->>Replan: State, current future plan and output path
+        Replan->>Files: Read historical context
+        Replan->>Memory: Read and update observed sales
+        Replan-->>Sim: Revised remaining-month CSV
+    end
+    Sim-->>CLI: Scores and execution logs
+    CLI->>Files: Verified results, write-up and submission ZIP
+```
+
+### Code layout
+
+| Location | Responsibility |
+| --- | --- |
+| `src/pjp/__main__.py` | CLI argument parsing and command dispatch |
+| `src/pjp/pipeline.py` | Complete workflow orchestration |
+| `src/pjp/data.py`, `audit.py` | Input validation and workbook audit |
+| `src/pjp/ranking.py`, `selection.py` | Commercial priorities and provisional focus selection |
+| `src/pjp/planning.py`, `routing.py`, `travel.py` | Dated calendar, route ordering and travel arithmetic |
+| `src/pjp/replanning.py` | Observation memory, sales signals and evening decisions |
+| `src/pjp/nudges.py`, `reporting.py` | Draft messages, two-page report and private packaging |
+| `src/pjp/evaluation.py`, `adaptive_evaluation.py` | Static/adaptive simulation and comparisons |
+| `config/` | Explicit ranking, selection, scheduling, nudge and re-plan policies |
+| `tests/`, `scripts/` | Synthetic tests and independent output verifiers |
+
+## Setup and installation
+
+The commands below are for macOS/Linux. If the repository is already cloned,
+start at step 2.
+
+### 1. Clone and check Python
+
+You need Git and **Python 3.11 or newer**.
 
 ```bash
-source .venv/bin/activate
-python -m pjp run
+git clone https://github.com/Prem790/1005-pjp-planner.git
+cd 1005-pjp-planner
+python3 --version
 ```
 
-Run from the repository root. This executes the audit, ranking, focus selection,
-calendar/routes, nudges, static/adaptive evaluations, independent verifiers,
-synthetic tests, two-page PDF and private submission packaging. It takes a few
-minutes and prints progress. It resets adaptive simulation memory per practice
-seed; it does not modify the supplied workbook or simulator.
+Check the version before continuing. macOS Command Line Tools Python 3.9 is too
+old. If needed, use an installed compatible interpreter such as `python3.12`
+in the next environment-creation command.
 
-Required local inputs:
-
-```text
-data/private/PJP_Assignment_Sample_Data.xlsx
-data/private/PJP_Simulator/simulate.py
-```
-
-Alternate source locations:
-
-```bash
-python -m pjp run --workbook /path/to/PJP_Assignment_Sample_Data.xlsx --simulator /path/to/PJP_Simulator/simulate.py
-```
-
-The assignment workbook and simulator are provided separately by the reviewers;
-they are confidential and intentionally excluded from Git.
-
-## Clean installation
-
-Use Python **3.11 or newer**. macOS Command Line Tools Python 3.9 is too old.
-Check `python3 --version`, or use an installed `python3.11`/`python3.12` explicitly.
-For a fresh checkout with a compatible `python3`:
+### 2. Install in a virtual environment
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e .
+python --version
+```
+
+For a named interpreter, substitute `python3.12 -m venv .venv` for the first line.
+The final version check must show Python 3.11 or newer.
+
+Dependencies are pinned in `pyproject.toml`: NumPy, pandas, openpyxl, ReportLab
+and pypdf. Standard installation needs access to the Python package index;
+execution uses local files. **No environment variables, API keys, database or
+external map/LLM services are required.**
+
+### 3. Place the supplied inputs
+
+```bash
+mkdir -p data/private
+```
+
+Copy the supplied workbook into `data/private/`. Extract the supplied simulator
+ZIP and place its `PJP_Simulator` folder there. Check the exact nesting:
+
+```text
+data/private/
+├── PJP_Assignment_Sample_Data.xlsx
+└── PJP_Simulator/
+    └── simulate.py
+```
+
+Only these two files are required at runtime. The simulator README and example
+callback may remain alongside `simulate.py`; the assignment brief and video are
+not runtime inputs. Use the original supplied files. Confidential inputs are
+excluded from Git and the submission bundle.
+
+## Usage
+
+Run commands from the repository root with the environment active.
+
+### Complete workflow — primary entry point
+
+```bash
 python -m pjp run
 ```
 
-Dependencies are pinned in `pyproject.toml`: NumPy, pandas, openpyxl, ReportLab
-and pypdf. No API credentials, database, map service or LLM account is required.
-The current workstation's environment reuses the existing Codex runtime; a
-reviewer should create their own isolated environment using the commands above.
+This performs nine stages: audit; rank; select; schedule/route; generate nudges;
+static evaluation; adaptive evaluation; tests; submission packaging. A successful
+run ends with `Full workflow completed ...` and records completion in
+`artifacts/pipeline/run_summary.json`.
 
-If `No module named pjp` appears, activate the project environment or run
-`.venv/bin/python -m pjp run`. Reactivate it in each new Terminal.
+Allow a few minutes depending on the machine; the last verified run took about
+75 seconds. Outputs are overwritten on repeat runs, and each practice simulation
+starts with fresh memory. Unchanged inputs, configuration and software environment
+produce the same main planning CSVs and scores; timings and PDF/ZIP metadata may
+differ. The source workbook and simulator are not modified.
 
-## Submission deliverables
+For inputs elsewhere, quote paths containing spaces:
 
-The full run creates `artifacts/submission/` and
-`artifacts/submission_bundle.zip`. Both stay local and Git-ignored. The private
-bundle contains:
+```bash
+python -m pjp run \
+  --workbook /path/to/PJP_Assignment_Sample_Data.xlsx \
+  --simulator /path/to/PJP_Simulator/simulate.py
+```
 
-- Per-SO November CSVs and the combined initial plan.
-- Adaptive `summary.json` for each of the three practice seeds.
-- Twelve WhatsApp examples with their supporting evidence.
-- The two-page `approach_and_results.pdf`.
-- One readable comparison report and a short bundle guide.
+In a new Terminal, enter your checkout and reactivate the environment:
 
-The reviewer bundle contains ten files, with one format per deliverable. Detailed
-CSVs, static summaries, repair logs and verification records remain outside the
-bundle under `artifacts/`. The editable write-up is in `artifacts/reports/`;
-package checksums are in `artifacts/submission_manifest.json`.
+```bash
+cd /path/to/1005-pjp-planner
+source .venv/bin/activate
+python -m pjp run
+```
 
-Use the Git repository for source code and documentation. Provide the confidential
-bundle privately to the assignment reviewers. The bundle does not contain the
-source workbook, source documents or supplied simulator. Nothing is automatically
-uploaded. The context for evening execution is generated locally by the full run.
+Replace `/path/to/1005-pjp-planner` with your checkout location. Environment
+creation and dependency installation are not required on every run.
 
-## Practice results and trade-offs
+### Evaluate against the supplied or reviewers' simulator
 
-The initial plan is identical in static and adaptive evaluations. Means over the
-published practice seeds 1, 2 and 3:
+First complete the full workflow above. It creates the combined initial plan
+and `artifacts/replanning/context.json`, the cached historical inputs needed by
+the evening callback.
+
+```bash
+python data/private/PJP_Simulator/simulate.py \
+  --workbook data/private/PJP_Assignment_Sample_Data.xlsx \
+  --plan artifacts/plan/plan_november.csv \
+  --replan-cmd "python -m pjp replan" \
+  --seed 1 \
+  --out artifacts/simulation/reviewer_run
+```
+
+Reviewers can substitute their simulator/workbook paths and an unpublished seed.
+The re-planner receives neither the seed nor hidden event labels.
+
+**Configure `python -m pjp replan` as the callback.** The simulator appends the
+actual `--state`, `--plan` and `--out` arguments every evening. The complete
+`run` workflow is not the per-evening callback.
+
+The expanded interface is:
+
+```bash
+python -m pjp replan \
+  --state STATE.json \
+  --plan CURRENT_PLAN.csv \
+  --out NEXT_PLAN.csv
+```
+
+Uppercase filenames are placeholders supplied by the simulator, not files to run
+literally. The command writes the complete remaining-month plan, including the
+required `date, so_id, sequence, account_id, account_type` columns plus timing
+and reasons. Output is written atomically.
+
+The default context path is relative to the repository root. If the simulator
+runs from another directory, install this package in its Python environment
+and include `--context /absolute/path/to/context.json` in the callback string.
+
+### State and memory
+
+The evening state supplies observed sales, visit outcomes, completed visits
+month-to-date, next-day forecasts and rules. Memory defaults to `pjp_memory.json`
+beside the simulator-provided current plan. Separate simulator temporary
+directories isolate runs while retaining observations between evenings.
+
+Use `--memory /path/to/run/memory.json` for explicit persistent state, with a
+fresh path for each independent run. Decision logs save signals, changed visits,
+unplaced obligations and the full future plan. Hidden event files are used only
+by post-run evaluation/verification, never by the planner.
+
+### Individual stages
+
+```bash
+python -m pjp audit --workbook data/private/PJP_Assignment_Sample_Data.xlsx
+python -m pjp rank --workbook data/private/PJP_Assignment_Sample_Data.xlsx
+python -m pjp select --workbook data/private/PJP_Assignment_Sample_Data.xlsx
+python -m pjp plan --workbook data/private/PJP_Assignment_Sample_Data.xlsx
+python -m pjp nudge
+python -m pjp evaluate-static
+python -m pjp evaluate-adaptive --seeds 1 2 3
+```
+
+Stages consume earlier outputs. Use the complete workflow first, especially
+before adaptive evaluation, and after changing policies or source data.
+
+## Practice results
+
+The same initial plan is used for both policies. Means across published practice
+seeds 1, 2 and 3:
 
 | Metric | Static | Adaptive |
 | --- | ---: | ---: |
@@ -95,103 +249,63 @@ published practice seeds 1, 2 and 3:
 | Guardrail breaches | 0 | 0 |
 | Re-plan failures | Not invoked | 0 |
 
-Adaptive runs exceed the 90% adherence target, with all club cadences met and
-better drop response. **Focus coverage is lower.** Forecasts cap next-day plans
-at five visits even when actual weather later proves clear. The initial calendar
-fills nominal capacity, leaving little recovery space. Club/drop prioritization
-and cancellations change which non-club dealers get covered. Higher adherence
-partly reflects fewer scheduled visits; completed visits and coverage must be
-read alongside it. Original-date adherence falls when visits move dates.
+**The coverage trade-off matters.** Adaptation protects club cadence and improves
+drop response, but focus coverage and completed-call volume fall. Forecast
+false alarms reserve five-call days even when actual weather is clear. With a
+full initial calendar, recovery priorities consume scarce capacity. Higher
+adherence partly reflects fewer scheduled visits; moving an appointment also
+reduces original-date adherence even if it is completed later.
 
-These are practice results, not hidden-seed performance. The approximate 60%
-manual adherence reference is contextual, not a simulated control run. No
-unofficial combined hiring score or causal improvement over manual plans is
-claimed. The two-page write-up discusses the coverage trade-off and limitations.
+All 72 adaptive evening calls completed without failures or timeouts in these
+practice runs. These results do not establish unpublished-seed performance.
+The approximate 60% historical manual benchmark is contextual, not a simulated
+control, and no causal real-world uplift or unofficial combined score is claimed.
 
-## How it works
+## Submission deliverables
 
-1. **Audit:** inspect all 11 sheets, reconcile totals and source identities, flag
-   calls under ten minutes and excessive historical repeat visits.
-2. **Rank:** 55% value-weighted loss, 30% supported recent drop, 10% coarse GST peer
-   context and 5% scheme opportunity. Use signed returns and matched periods;
-   current ownership and explicit club flags determine obligations. Missing data
-   does not become invented turnover, coordinates or recoverable revenue.
-3. **Select:** protect club outlets, restrict optional owner duplication, fill
-   the normal 150 visits per SO and screen optimistic travel bounds. This yields
-   142/132/149 distinct focus dealers, above the brief's approximate 100.
-4. **Schedule/route:** assign 25 Monday–Saturday days; clubs twice fourteen days
-   apart. Optimize geography and commercial earliness; use exact within-day
-   open-route travel. Two remote non-club replacements are explicitly logged.
-5. **Nudge:** draft 450 messages under 300 characters, dated to the October 15
-   snapshot. State scheme assumptions, shared-owner points and GPS gaps. Twelve
-   examples include evidence; nothing is sent to WhatsApp.
-6. **Re-plan:** persist observed sales, detect supported changes, restore missed
-   obligations, pull drop visits forward and defer eligible hike visits. Protect
-   club spacing/frequency and use next-day forecasts for capacity/travel. Retain
-   future route anchors where possible and log any unplaced obligations.
-7. **Evaluate/package:** run the unmodified supplied simulator, independently
-   verify all dated plans and scores, compare policies, and build the submission.
+The complete workflow produces `artifacts/submission_bundle.zip`. Its ten files
+use one format per deliverable:
 
-## Evening re-plan interface
-
-After the full run creates `artifacts/replanning/context.json`, the simulator can
-call the following from the repository root:
-
-```bash
-python -m pjp replan --state STATE.json --plan CURRENT_PLAN.csv --out NEXT_PLAN.csv
+```text
+artifacts/submission/
+├── READ_ME.txt
+├── approach_and_results.pdf
+├── plan_SO-A.csv
+├── plan_SO-B.csv
+├── plan_SO-C.csv
+├── practice_seed_1/summary.json
+├── practice_seed_2/summary.json
+├── practice_seed_3/summary.json
+├── simulator_comparison.txt
+└── whatsapp_nudges_with_evidence.txt
 ```
 
-The contract's three flags are supported; output contains the complete remaining
-month and required five columns plus route timing/reasons. The supplied state
-contains today's sales, completed/missed visits, completed visits month-to-date,
-next-day forecasts and rules. It contains no hidden event labels.
+The three CSVs each contain 150 initial appointments and the required date,
+officer, sequence, account, arrival, travel and reason fields. The PDF is exactly
+two pages; the nudge text contains 12 examples with supporting data.
 
-By default, memory is `pjp_memory.json` beside `CURRENT_PLAN.csv`; simulator runs
-have separate temporary directories, so observations persist across evenings but
-remain isolated between runs. For explicit operational state:
+Keep the repository for code/documentation and send the confidential ZIP privately
+to reviewers. The workbook, supplied simulator and source documents are excluded.
+Detailed CSVs, static summaries, repair logs and verification remain outside the
+bundle. Editable report text is in `artifacts/reports/`; package checksums are in
+`artifacts/submission_manifest.json`. No messages or uploads happen automatically.
 
-```bash
-python -m pjp replan --state STATE.json --plan CURRENT_PLAN.csv --out NEXT_PLAN.csv --context artifacts/replanning/context.json --memory artifacts/replanning/my_run/memory.json
-```
+### Internal output locations
 
-Use a fresh memory path for a new month/run. Outputs are written atomically.
-Decision logs include observed signals, forecast changes, displaced visits,
-unplaced obligations and the full future plan. Every future plan is checked for
-visit frequency and club spacing. The practice runs completed all 72 evening
-calls without timeouts or failures; compute time excludes interpreter startup.
+| Directory | Contents |
+| --- | --- |
+| `artifacts/audit/` | Workbook checks and historical guardrail flags |
+| `artifacts/ranking/` | Scores, owner/scheme evidence and sensitivity |
+| `artifacts/focus/` | Provisional selection and deferral reasons |
+| `artifacts/plan/` | Initial CSVs, daily budgets, final focus and explicit repairs |
+| `artifacts/nudges/` | All 450 drafts, examples and evidence |
+| `artifacts/replanning/` | Cached historical context |
+| `artifacts/simulation/static/` | Fixed-plan practice logs and scores |
+| `artifacts/simulation/adaptive/` | Adaptive memory, decisions, scores and comparison |
+| `artifacts/pipeline/` | Verification logs and completion record |
 
-### Sales-change rules
-
-The reference is signed historical sheets per workday (July 16–October 15).
-Only actual November evening observations are accumulated. Missing sales entries
-are zero-filled for observed working days. Compare 3–5 observations with that
-reference using an approximate overdispersed count likelihood (dispersion 2).
-A low ratio alone is insufficient to trigger a drop. Extra visits require stronger
-evidence than pulling an already-owed visit forward. Hike holds are temporary,
-never cancel club obligations, and do not waive initial focus coverage.
-
-Thresholds live in `config/replanning.json`. They are baseline judgement choices,
-not ground-truth labels. Quiet low-volume accounts remain hard to classify.
-Revealed events are read only by post-run evaluation/verification, never by the
-planner. No per-seed plan, event onset date or hidden-world generator is used.
-
-## Run individual stages
-
-With the virtual environment active:
-
-```bash
-python -m pjp audit --workbook data/private/PJP_Assignment_Sample_Data.xlsx
-python -m pjp rank --workbook data/private/PJP_Assignment_Sample_Data.xlsx
-python -m pjp select --workbook data/private/PJP_Assignment_Sample_Data.xlsx
-python -m pjp plan --workbook data/private/PJP_Assignment_Sample_Data.xlsx
-python -m pjp nudge
-python -m pjp evaluate-static
-python -m pjp evaluate-adaptive
-```
-
-Run `python -m pjp run` first when using adaptive evaluation independently, so its
-cached context exists and matches current configuration. The full command is the
-authoritative way to regenerate all outputs consistently after changes.
+The combined 450-appointment simulator input is
+`artifacts/plan/plan_november.csv`, outside the concise reviewer bundle.
 
 ## Verification
 
@@ -204,59 +318,59 @@ python scripts/verify_nudges.py --workbook data/private/PJP_Assignment_Sample_Da
 python scripts/verify_adaptive.py
 ```
 
-The full workflow runs these automatically. Verifiers use separate arithmetic
-and source-reading paths rather than importing the implementation they check.
-Adaptive verification examines every evening's entire future plan, as well as
-execution logs, focus coverage, club cadence, drop response, hike handling and
-score reconciliation. Source files are hashed before/after execution.
-
-Synthetic tests cover sparse/future data, return signs, missing fields,
-parent groups, scheme windows, routing, unknown GPS semantics, capacity,
-frequency, missed clubs, sales noise and state isolation. They contain no actual
-assignment dealer records. `artifacts/pipeline/` contains verifier logs and the
-full-run completion manifest. Submission packaging checks completed verification
-records before export.
-
-## Output locations
-
-| Directory | Contents |
-| --- | --- |
-| `artifacts/audit/` | Workbook audit and historical guardrail flags |
-| `artifacts/ranking/` | All dealer scores, owner/scheme evidence, sensitivity |
-| `artifacts/focus/` | Provisional selection and deferrals |
-| `artifacts/plan/` | Initial CSVs, routes, final focus and explicit repairs |
-| `artifacts/nudges/` | All drafts, 12 examples and evidence |
-| `artifacts/replanning/` | Source-derived context for evening execution |
-| `artifacts/simulation/static/` | Fixed-plan practice logs and summaries |
-| `artifacts/simulation/adaptive/` | Adaptive logs, memory, comparison and checks |
-| `artifacts/submission/` | Required private deliverables |
+The complete workflow runs these automatically and stops if a check fails.
+The last verified suite has 64 synthetic tests. Independent verifiers use
+separate arithmetic/source-reading paths to reconcile ledger features, messages,
+initial routes, scores and every evening's full future plan. They check ownership,
+frequency, club spacing and forecast travel budgets. Source inputs are hashed
+before and after the workflow. Packaging requires successful verification records.
 
 ## Assumptions and limitations
 
-- Six initial visits per day requires more than approximately 100 focus dealers.
-- Dealer service is 25 minutes. Reserve two 40-minute DG blocks including travel;
-  no DG accounts are supplied. Static blocks are 17:10–17:50 and 17:50–18:30.
-- Travel matches the simulator: Haversine x 1.35, 18/30 km/h, no return leg.
-  Missing GPS uses fixed 25/45-minute travel without moving the known position.
-  Numerical route feasibility does not establish real-world geographic feasibility.
-- No separate lunch duration is specified; it is not subtracted from this model.
-- Quarterly targets reused as instructed are assumed; verify current eligibility
-  and balances. Broad GST proxies cannot yield exact wallet share.
-- Static nudges are October 15 snapshots, including later club appointments;
-  live implementation should refresh them after re-planning and new sales.
-- Weather forecasts can be wrong. Full recovery of all initial obligations is
-  not guaranteed in a fixed-capacity month; remaining shortfalls are logged.
-- Generic evidence thresholds can miss real drops or trigger on ordinary noise.
-  More history, availability, opening hours and calibrated business costs would help.
+- Six initial visits on each of 25 working days gives 150 appointments per SO.
+  Protecting clubs yields 142/132/149 distinct focus dealers, above the brief's
+  approximate 100. Two remote non-club replacements are explicitly logged.
+- Ranking weights are 55% value loss, 30% supported drops, 10% coarse GST peer
+  context and 5% scheme opportunity. These are explicit baseline choices.
+- Sales-change detection compares 3–5 observed working days with historical
+  signed sheets/workday, using approximate overdispersed count evidence.
+  Extra repeat visits need stronger evidence; low-volume changes remain difficult.
+- Travel follows the simulator: Haversine x 1.35, 18/30 km/h, 25-minute dealer
+  service, and no return leg. Unknown GPS uses fixed 25/45-minute travel without
+  moving the known position; modeled feasibility is not proof of real travel time.
+- The supplied simulator reserves two 40-minute DG calls including travel.
+  Initial DG blocks are 17:10–17:50 and 17:50–18:30. No DG account identities are
+  invented. A separate lunch duration is not specified and is not subtracted.
+- Explicit membership determines club obligations. Shared owners share scheme
+  points; reused quarterly targets are labeled assumptions. Broad GST proxies
+  do not establish exact turnover or wallet share.
+- Nudges are drafts from the October 15 snapshot, not live November messages.
+  They should be refreshed after observations and re-planning in a live system.
+- Forecast errors and late misses can prevent full recovery. Shortfalls are
+  logged; real deployment needs verified GPS, availability, opening hours,
+  travel times and calibrated business costs for coverage versus intervention.
 
-## Repository layout and methods
+## Troubleshooting
 
-`src/pjp/` contains the implementation and CLI; `config/` contains policy choices;
-`tests/` has synthetic tests; `scripts/` has independent verifiers. Detailed
-methods are in `docs/ranking_rules.txt`, `docs/focus_selection_rules.txt`,
-`docs/calendar_and_routes.txt`, `docs/visit_nudges.txt`, `docs/static_evaluation.txt`
-and `docs/replanning_and_results.txt`.
+| Symptom | Action |
+| --- | --- |
+| `No module named pjp` | Activate `.venv`, then run `python -m pip install -e .` from the repository root. |
+| Python below 3.11 | Create the environment using a compatible interpreter, such as `python3.12`. |
+| Missing workbook or simulator | Check exact filenames and the input folder nesting under Setup. |
+| Missing historical context | Complete `python -m pjp run` before adaptive evaluation or the evening callback. |
+| Cannot find `STATE.json` | The uppercase names are placeholders; let the simulator supply the actual files. |
+| Verification failure | Inspect `artifacts/pipeline/` logs and the failing stage before submission. |
 
-Keep raw inputs and all confidential derived outputs out of Git. Do not attach
-records to public issues or PRs. See `docs/data_handling.md`; delete assignment
-copies after the process as instructed, when authorized. No deletion is automatic.
+## Further documentation
+
+- [Ranking rules](docs/ranking_rules.txt)
+- [Focus selection](docs/focus_selection_rules.txt)
+- [Calendar and routes](docs/calendar_and_routes.txt)
+- [Nudge evidence](docs/visit_nudges.txt)
+- [Static evaluation](docs/static_evaluation.txt)
+- [Re-planning and results](docs/replanning_and_results.txt)
+- [Confidential data handling](docs/data_handling.md)
+
+Keep confidential inputs and generated results out of Git and public issues.
+Delete assignment copies after the process as instructed when authorized;
+no deletion is automatic.
